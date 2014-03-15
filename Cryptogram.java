@@ -379,24 +379,7 @@ public class Cryptogram {
 
 		return s;
 	}
-	
-	/*
-	 * Returns the corresponding String in the hashtable, using the given index
-	 */
-	public String getQuadrigram(int index) {
-		String s = null;
-
-		for(Entry<String, Float> entry : cipherQuadrigramFrequency.entrySet()) {
-			s=entry.getKey();
-			if(index==0) {
-				break;
-			}
-			index--;
-		}
-
-		return s;
-	}	
-	
+		
 	/*
 	 * Decrypt the cipherBuffer with a given key and given size of the message.
 	 */
