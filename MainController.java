@@ -516,45 +516,4 @@ public class MainController {
 		}
 	}
 
-	/*
-	 * Maps the most common unmapped English TETRAGRAM to the most common unmapped cipher TETRAGRAM
-	 */
-	public static void mapQuadrigrams(Cryptogram cryptogram) {
-		//look at the next possible quadrigram
-		String s1 = null;
-		String s2 = null;
-		boolean found1 = false;
-		boolean found2 = false;
-		
-		for(int i=0; i<commonQuadrigramsArray.size(); i++) {
-			s1 = commonQuadrigramsArray.get(i);
-			if((mappingKEY.containsKey(s1.charAt(0))) || (mappingKEY.containsKey(s1.charAt(1)) || (mappingKEY.containsKey(s1.charAt(2)) || mappingKEY.containsKey(s1.charAt(3))))) {
-				//repick
-			}
-			else {
-				found1 = true;
-				break;
-			}
-		}
-		
-		for(int i=0; i<cryptogram.getTetragramFrequency().size(); i++) {
-			s2 = cryptogram.getQuadrigram(i);
-			if((mappingKEY.containsValue(s2.charAt(0))) || (mappingKEY.containsValue(s2.charAt(1)) || (mappingKEY.containsValue(s2.charAt(2)) || mappingKEY.containsKey(s2.charAt(3))))) {
-				//repick
-			}
-			else {
-				found2 = true;
-				break;
-			}
-		}
-		
-		//mapping the key for the digram
-		if(found1&&found2) {
-			for(int i=0; i<s1.length(); i++) {
-				mappingKEY.put(s1.charAt(i), s2.charAt(i));
-				mappingKEYArray.add(s2.charAt(i));
-			}
-		}
-	}
-	
 }
