@@ -10,11 +10,11 @@ import java.util.Map.Entry;
 
 public class Cryptogram {
 	
-	private char[] cipherText = new char[10000];	//creates a buffer for 10,000 characters
+	private char[] cipherText;	//creates a buffer for 10,000 characters
 	private	LinkedHashMap<Character, Float> cipherLetterFrequency = new LinkedHashMap<Character, Float>();
 	private	LinkedHashMap<String, Float> cipherDigramFrequency = new LinkedHashMap<String, Float>();
 	private	LinkedHashMap<String, Float> cipherTrigramFrequency = new LinkedHashMap<String, Float>();
-	private	LinkedHashMap<String, Float> cipherTetragramFrequency = new LinkedHashMap<String, Float>();
+	private	LinkedHashMap<String, Float> cipherQuadrigramFrequency = new LinkedHashMap<String, Float>();
 	
 	/*
 	 * Default Constructor
@@ -32,7 +32,7 @@ public class Cryptogram {
 		cipherLetterFrequency = calculateFrequency(cipherText);
 		cipherDigramFrequency = calculateDigramFrequency(cipherText);
 		cipherTrigramFrequency = calculateTrigramFrequency(cipherText);
-		cipherTetragramFrequency = calculateTetragramFrequency(cipherText);
+		cipherQuadrigramFrequency = calculateTetragramFrequency(cipherText);
 	}
 	
 	/*
@@ -40,13 +40,30 @@ public class Cryptogram {
 	 * Called upon in the constructor
 	 */
 	public void loadCipherText(String fileName) {
+		
+		ArrayList<Character> buffer = new ArrayList<Character>();
+		
 		try {
 			BufferedReader fileReader = new BufferedReader(new FileReader(fileName));
 			
-			while ((fileReader.read())!=-1) {
-				fileReader.read(cipherText);
-			}
+			do {
+				char c = (char) fileReader.read();
+				
+				if(c != (char) -1) {
+					buffer.add(c);
+				}
+				else {
+					break;
+				}
+			}while(true);
+			
 			fileReader.close();		
+			
+			//store from buffer into char Array variable cipherText[]
+			cipherText = new char[buffer.size()];
+			for(int i=0; i<buffer.size(); i++) {
+				cipherText[i] = buffer.get(i);
+			}
 			
 			//change all to UPPERCASE
 			for(int i=0; i<cipherText.length; i++) {
@@ -84,7 +101,14 @@ public class Cryptogram {
 	 * Returns the HashMap Table of the relative frequency of TETRAGRAMS
 	 */
 	public LinkedHashMap<String, Float> getTetragramFrequency() {
-		return cipherTetragramFrequency;
+		return cipherQuadrigramFrequency;
+	}
+	
+	/*
+	 * returns True if the character is a Latin English letter
+	 */
+	public static boolean isLatinLetter(char c) {
+	    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 	}
 	
 	/*
@@ -100,7 +124,7 @@ public class Cryptogram {
 			c1 = Character.toUpperCase(c1);
 			Float val;
 			
-			if(Character.isLetter(c1)) {
+			if(isLatinLetter(c1)) {
 				digram = digram + c1;
 				if(digram.length() == 2) {
 					//count the DIGRAMS
@@ -154,7 +178,7 @@ public class Cryptogram {
 			c1 = Character.toUpperCase(c1);
 			Float val;
 
-			if(Character.isLetter(c1)) {
+			if(isLatinLetter(c1)) {
 				trigram = trigram + c1;
 				if(trigram.length() == 3) {
 					//count the DIGRAMS
@@ -208,7 +232,7 @@ public class Cryptogram {
 			c1 = Character.toUpperCase(c1);
 			Float val;
 
-			if(Character.isLetter(c1)) {
+			if(isLatinLetter(c1)) {
 				tetragram = tetragram + c1;
 				if(tetragram.length() == 4) {
 					//count the TETRAGRAMS
@@ -266,7 +290,7 @@ public class Cryptogram {
 
 			c = Character.toUpperCase(c);
 
-			if(Character.isLetter(c)) {	//check if the character is a letter, if it is not, removed them
+			if(isLatinLetter(c)) {	//check if the character is a letter, if it is not, removed them
 				val = hashTable.get(new Character(c));
 
 				if(val != null) {
@@ -303,14 +327,6 @@ public class Cryptogram {
 		}
 
 		return hashBuffer;
-	}
-
-	public void printLetterFrequency() {
-		System.out.println(cipherLetterFrequency.toString());
-	}
-
-	public void printDigramFrequency() {
-		System.out.println(cipherDigramFrequency.toString());
 	}
 
 	/*
@@ -367,10 +383,10 @@ public class Cryptogram {
 	/*
 	 * Returns the corresponding String in the hashtable, using the given index
 	 */
-	public String getTetragram(int index) {
+	public String getQuadrigram(int index) {
 		String s = null;
 
-		for(Entry<String, Float> entry : cipherTetragramFrequency.entrySet()) {
+		for(Entry<String, Float> entry : cipherQuadrigramFrequency.entrySet()) {
 			s=entry.getKey();
 			if(index==0) {
 				break;

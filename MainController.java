@@ -2,11 +2,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Random;
 import java.util.Scanner;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -54,13 +52,12 @@ public class MainController {
 		
 		//WordList dictionary = new WordList("dictionary.txt");
 		loadFrequencyFile("digramFrequency.txt",DigramsArray, 0);
-		loadFrequencyFile("trigramFrequency.txt",TrigramsArray,300);
+		loadFrequencyFile("trigramFrequency.txt",TrigramsArray,0);
 		
 		//Menu
 		System.out.println("Please enter the encrypted text file name (Including the file type (.txt): ");
 		Scanner sc = new Scanner(System.in);
 		String fileName = sc.next();
-		System.out.println(fileName);
 		
 		Cryptogram ciphertext = new Cryptogram(fileName);				
 		
@@ -71,6 +68,9 @@ public class MainController {
 		mapDigrams(ciphertext);
 		
 		int startingIndex = mappingKEY.size()-1;
+		
+		System.out.println(mappingKEY.toString());
+		System.out.println(ciphertext.getFrequency().toString());
 
 		int index = 0;
 		for(Entry<Character, Float> entry : ciphertext.getFrequency().entrySet()) {
@@ -362,21 +362,6 @@ public class MainController {
 	}
 	
 	/*
-	 * getword
-	 */
-	public static String getWord(int index, int length, char[] decryptedBuffer) {
-		String s = "";
-		if(index + length >= bufferSize) {
-			return null;
-		}
-		while(s.length() != length) {
-			s = s + decryptedBuffer[index];
-			index++;
-		}
-		return s;
-	}
-	
-	/*
 	 * Reads the given fileName(.txt file) and place the N-Grams into the specified arrayList. 
 	 * Argument "max" indicates the maximum number of entries to be loaded into the specified list.
 	 * If (max==0), the function load ALL the N-grams in the .txt file.
@@ -553,7 +538,7 @@ public class MainController {
 		}
 		
 		for(int i=0; i<cryptogram.getTetragramFrequency().size(); i++) {
-			s2 = cryptogram.getTetragram(i);
+			s2 = cryptogram.getQuadrigram(i);
 			if((mappingKEY.containsValue(s2.charAt(0))) || (mappingKEY.containsValue(s2.charAt(1)) || (mappingKEY.containsValue(s2.charAt(2)) || mappingKEY.containsKey(s2.charAt(3))))) {
 				//repick
 			}
