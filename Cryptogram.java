@@ -397,7 +397,6 @@ public class Cryptogram {
 				for(int k=0; k<size; k++) {
 					if(Character.isLetter(decryptedMsg[k])) {
 						char c1 = entry.getValue();
-						//c1 = Character.toLowerCase(c1);
 						if(decryptedMsg[k] == c1) {
 							decryptedMsg[k] = Character.toLowerCase(entry.getKey());
 						}
@@ -406,16 +405,16 @@ public class Cryptogram {
 			}
 		}
 		else {
+			System.out.println(cipherText.length);
 			decryptedMsg = new char[cipherText.length];
-			for(int j=0; j<size; j++) {
+			for(int j=0; j<cipherText.length; j++) {
 				decryptedMsg[j] = cipherText[j];
 			}	
 
 			for(Entry<Character, Character> entry : mappingKEY.entrySet()) {
-				for(int k=0; k<size; k++) {
+				for(int k=0; k<cipherText.length; k++) {
 					if(Character.isLetter(decryptedMsg[k])) {
 						char c1 = entry.getValue();
-						//c1 = Character.toLowerCase(c1);
 						if(decryptedMsg[k] == c1) {
 							decryptedMsg[k] = Character.toLowerCase(entry.getKey());
 						}

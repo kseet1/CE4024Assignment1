@@ -17,7 +17,7 @@ public class MainController {
 	
 	private static LinkedHashMap<Character, Character> mappingKEY = new LinkedHashMap<Character, Character>();	//HashMap<Plaintext, Ciphertext>
 	private static ArrayList<Character> mappingKEYArray = new ArrayList<Character>();
-	private static final int bufferSize = 2000;
+	private static final int bufferSize = 1500;
 	private static char[] decryptedBuffer1 = new char[bufferSize];
 	private static char[] decryptedBuffer2 = new char[bufferSize];
 	
@@ -34,23 +34,22 @@ public class MainController {
 											"ever","from","ough","were","hing","ment", "quite"};	
 	
 	private static List<String> commonLettersArray = Arrays.asList(commonLetters);
-	private static List<String> commonDigramsArray = Arrays.asList(commonDigrams);
-	private static List<String> commonTrigramsArray = Arrays.asList(commonTrigrams);
+//	private static List<String> commonDigramsArray = Arrays.asList(commonDigrams);
+//	private static List<String> commonTrigramsArray = Arrays.asList(commonTrigrams);
 	private static List<String> commonQuadrigramsArray = Arrays.asList(commonQuadrigrams);
 	
+//	private static List<String> commonLettersArray = new ArrayList<String>();
+//	private static List<String> commonQuadrigramsArray = new ArrayList<String>();
+	private static List<String> commonDigramsArray = new ArrayList<String>();
+	private static List<String> commonTrigramsArray = new ArrayList<String>();
 	private static List<String> DigramsArray = new ArrayList<String>();
 	private static List<String> TrigramsArray = new ArrayList<String>();
 	
 	public static void main(String[] args) throws IOException {
 		
-		Set<String> dictionary = new HashSet<String>();
-	    Scanner filescan = new Scanner(new File("dictionary.txt"));
-	    while (filescan.hasNext()) {
-	        dictionary.add(filescan.nextLine().toLowerCase());
-	    }
-	    filescan.close();
-		
 		//WordList dictionary = new WordList("dictionary.txt");
+	    loadFrequencyFile("digramFrequency.txt", commonDigramsArray, 30);
+	    loadFrequencyFile("trigramFrequency.txt", commonTrigramsArray, 30);
 		loadFrequencyFile("digramFrequency.txt",DigramsArray, 0);
 		loadFrequencyFile("trigramFrequency.txt",TrigramsArray,0);
 		
@@ -60,18 +59,7 @@ public class MainController {
 		String fileName = sc.next();
 		
 		Cryptogram ciphertext = new Cryptogram(fileName);				
-		
-		// Step 1: Map the most common letter in english ('e') to the most common cipher found
-		mappingKEY.put(commonLettersArray.get(0).charAt(0), ciphertext.getLetter(0));
-		mappingKEYArray.add(ciphertext.getLetter(0));
-		mapDigrams(ciphertext);
-		mapDigrams(ciphertext);
-		
-		int startingIndex = mappingKEY.size()-1;
-		
-		System.out.println(mappingKEY.toString());
-		System.out.println(ciphertext.getFrequency().toString());
-
+	
 		int index = 0;
 		for(Entry<Character, Float> entry : ciphertext.getFrequency().entrySet()) {
 			if(mappingKEYArray.contains(entry.getKey())) {
@@ -92,10 +80,10 @@ public class MainController {
 		System.out.println(mappingKEY.toString());
 		decryptedBuffer1 = ciphertext.decrypt(mappingKEY, bufferSize); 
 		
-		int repeats = 0;
+		int repeatCount = 0;
 		do{
 			for(int increment=1; increment<26; increment++) {
-				for(int k=startingIndex; k<25; k++) {
+				for(int k=0; k<25; k++) {
 					if(k+increment > 25) {
 						break;
 					}
@@ -105,7 +93,7 @@ public class MainController {
 					decryptedBuffer2 = ciphertext.decrypt(mappingKEY, bufferSize);
 
 					//compare the two decryptedBuffers
-					if(repeats<8) {
+					if(repeatCount<8) {
 						if(compare(decryptedBuffer1, decryptedBuffer2) == 1) {
 							swapKEY(key1, key2);	//swap back the key
 						}
@@ -125,13 +113,14 @@ public class MainController {
 			}
 			
 			System.out.println(decryptedBuffer1);
-			startingIndex = 0;
-			repeats++;
-		}while(repeats<12);
+			System.out.println("\n Decrypting... Please wait...");
+			repeatCount++;
+		}while(repeatCount<12);
 	
 		for(int i=0; i<alphabets.length; i++) {
 			key[i] = mappingKEY.get(alphabets[i]);
 		}
+		
 		System.out.println("\nKEY Mapping: ");
 		System.out.println(mappingKEY.toString());
 		System.out.println("Plaintext: " + new String(alphabets));
@@ -141,21 +130,18 @@ public class MainController {
 			System.out.println("\n===============================================");
 			System.out.println("Please select an option (1-5): ");
 			System.out.println("1. Print the decrypted text");
-			System.out.println("2. Print the letter frequency");
-			System.out.println("3. Manually swap Keys");
-			System.out.println("4. View Key");
-			System.out.println("5. Exit the program");
+			System.out.println("2. Manually swap Keys");
+			System.out.println("3. View Key");
+			System.out.println("4. Exit the program");
 			System.out.println("===============================================");
 
 			System.out.print("Option: ");
 			int choice = sc.nextInt();
 			switch(choice){
 			case 1:
-				System.out.println(ciphertext.decrypt(mappingKEY,10000));
+				System.out.println(ciphertext.decrypt(mappingKEY,0));
 				break;
-			case 2:
-				break;
-			case 3: {
+			case 2: {
 				System.out.println("\nPlaintext: " + new String(alphabets));
 				System.out.println("Key: " + new String(key));
 				System.out.println("\nSelect the two KEYs you wish to swap: ");
@@ -175,14 +161,14 @@ public class MainController {
 				System.out.println("Swapping done!");
 				break;
 			}
-			case 4: {
+			case 3: {
 				System.out.println("\nKEY Mapping: ");
 				System.out.println(mappingKEY.toString());
 				System.out.println("Plaintext: " + new String(alphabets));
 				System.out.println("Ciphertext: " + new String(key));
 				break;
 			}
-			case 5: {
+			case 4: {
 				System.out.println("Terminating Program...");
 				System.exit(0);
 				break;
@@ -192,31 +178,6 @@ public class MainController {
 				break;
 			}
 		}
-	}
-
-	public static void search(String input, Set<String> dictionary,
-	        Stack<String> words, List<List<String>> results) {
-
-	    for (int i = 0; i < input.length(); i++) {
-	        // take the first i characters of the input and see if it is a word
-	        String substring = input.substring(0, i + 1);
-
-	        if (dictionary.contains(substring)) {
-	            // the beginning of the input matches a word, store on stack
-	            words.push(substring);
-
-	            if (i == input.length() - 1) {
-	                // there's no input left, copy the words stack to results
-	                results.add(new ArrayList<String>(words));
-	            } else {
-	                // there's more input left, search the remaining part
-	                search(input.substring(i + 1), dictionary, words, results);
-	            }
-
-	            // pop the matched word back off so we can move onto the next i
-	            words.pop();
-	        }
-	    }
 	}
 	
 	/*
@@ -432,88 +393,6 @@ public class MainController {
 		//Swapping and updating the Array List of KEYs.
 		mappingKEYArray.set(index1, secondKEY);
 		mappingKEYArray.set(index2, firstKEY);
-	}
-	
-	/*
-	 * Maps the most common unmapped English DIGRAM to the most common unmapped cipher DIGRAM
-	 */
-	public static void mapDigrams(Cryptogram cryptogram) {
-		//look at the next possible digram
-		String s1 = null;
-		String s2 = null;
-		boolean found1 = false;
-		boolean found2 = false;
-		
-		for(int i=0; i<commonDigramsArray.size(); i++) {
-			s1 = commonDigramsArray.get(i);
-			if((mappingKEY.containsKey(s1.charAt(0))) || (mappingKEY.containsKey(s1.charAt(1)))) {
-				//repick
-			}
-			else {
-				found1 = true;
-				break;
-			}
-		}
-		
-		for(int i=0; i<cryptogram.getDigramFrequency().size(); i++) {
-			s2 = cryptogram.getDigram(i);
-			if((mappingKEY.containsValue(s2.charAt(0))) || (mappingKEY.containsValue(s2.charAt(1)))) {
-				//repick
-			}
-			else {
-				found2 = true;
-				break;
-			}
-		}
-		
-		//mapping the key for the digram
-		if(found1&&found2) {
-			for(int i=0; i<s1.length(); i++) {
-				mappingKEY.put(s1.charAt(i), s2.charAt(i));	
-				mappingKEYArray.add(s2.charAt(i));
-			}
-		}
-	}
-
-	/*
-	 * Maps the most common unmapped English TRIGRAM to the most common unmapped cipher TRIGRAM
-	 */
-	public static void mapTrigrams(Cryptogram cryptogram) {
-		//look at the next possible digram
-		String s1 = null;
-		String s2 = null;
-		boolean found1 = false;
-		boolean found2 = false;
-		
-		for(int i=0; i<commonTrigramsArray.size(); i++) {
-			s1 = commonTrigramsArray.get(i);
-			if((mappingKEY.containsKey(s1.charAt(0))) || (mappingKEY.containsKey(s1.charAt(1)) || (mappingKEY.containsKey(s1.charAt(2))))) {
-				//repick
-			}
-			else {
-				found1 = true;
-				break;
-			}
-		}
-		
-		for(int i=0; i<cryptogram.getTrigramFrequency().size(); i++) {
-			s2 = cryptogram.getTrigram(i);
-			if((mappingKEY.containsValue(s2.charAt(0))) || (mappingKEY.containsValue(s2.charAt(1)) || (mappingKEY.containsValue(s2.charAt(2))))) {
-				//repick
-			}
-			else {
-				found2 = true;
-				break;
-			}
-		}
-		
-		//mapping the key for the digram
-		if(found1&&found2) {
-			for(int i=0; i<s1.length(); i++) {
-				mappingKEY.put(s1.charAt(i), s2.charAt(i));
-				mappingKEYArray.add(s2.charAt(i));
-			}
-		}
 	}
 
 }
