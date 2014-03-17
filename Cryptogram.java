@@ -14,7 +14,6 @@ public class Cryptogram {
 	private	LinkedHashMap<Character, Float> cipherLetterFrequency = new LinkedHashMap<Character, Float>();
 	private	LinkedHashMap<String, Float> cipherDigramFrequency = new LinkedHashMap<String, Float>();
 	private	LinkedHashMap<String, Float> cipherTrigramFrequency = new LinkedHashMap<String, Float>();
-	private	LinkedHashMap<String, Float> cipherQuadrigramFrequency = new LinkedHashMap<String, Float>();
 	
 	/*
 	 * Default Constructor
@@ -23,21 +22,23 @@ public class Cryptogram {
 	}
 	
 	/*
+	 * =============================================================================================
 	 * Constructor and loads the cipherText into a cipher Buffer
 	 * Calls upon the calculateFrequency() and calculateDigramFrequency() to calculate the
 	 * relative frequency of letters and digrams in the cipherText 
+	 * =============================================================================================
 	 */
 	public Cryptogram(String fileName) {
 		loadCipherText(fileName);
 		cipherLetterFrequency = calculateFrequency(cipherText);
 		cipherDigramFrequency = calculateDigramFrequency(cipherText);
-		cipherTrigramFrequency = calculateTrigramFrequency(cipherText);
-		cipherQuadrigramFrequency = calculateTetragramFrequency(cipherText);
 	}
 	
 	/*
-	 * Public method to load the cipherText into the cipher buffer.
+	 * =============================================================================================
+	 * Loads the given filename text into the cipher buffer.
 	 * Called upon in the constructor
+	 * =============================================================================================
 	 */
 	public void loadCipherText(String fileName) {
 		
@@ -95,13 +96,6 @@ public class Cryptogram {
 	 */
 	public LinkedHashMap<String, Float> getTrigramFrequency() {
 		return cipherTrigramFrequency;
-	}
-	
-	/*
-	 * Returns the HashMap Table of the relative frequency of TETRAGRAMS
-	 */
-	public LinkedHashMap<String, Float> getTetragramFrequency() {
-		return cipherQuadrigramFrequency;
 	}
 	
 	/*
@@ -167,133 +161,28 @@ public class Cryptogram {
 		}
 		return hashBuffer;
 	}
-	
-	public LinkedHashMap<String, Float> calculateTrigramFrequency(char[] buffer) {
-
-		LinkedHashMap<String, Float> hashTable = new LinkedHashMap<String, Float>();
-
-		String trigram = "";
-		for(int i=0; i<(buffer.length-2); i++) {
-			char c1 = buffer[i];
-			c1 = Character.toUpperCase(c1);
-			Float val;
-
-			if(isLatinLetter(c1)) {
-				trigram = trigram + c1;
-				if(trigram.length() == 3) {
-					//count the DIGRAMS
-					val = hashTable.get(new String(trigram));
-					if(val != null) {
-						hashTable.put(trigram, val+1);
-					}
-					else {
-						hashTable.put(trigram, (float) 1);
-					}
-					trigram =  "";	//reset the digram field
-				}
-			}
-			else {
-				//character is not a letter -> do nothing - restart the loop and look at next character
-			}
-		}
-
-		//calculate the relative frequency of the digrams
-		float totalCount = 0;
-		for(Entry<String, Float> entry : hashTable.entrySet()) {
-			totalCount += entry.getValue();
-		}
-		for(Entry<String, Float> entry: hashTable.entrySet()) {
-			entry.setValue((entry.getValue()/totalCount) *100);
-		}
-
-		//sorting the hashtable, hashBuffer will contain the new sorted hashMap
-		LinkedHashMap<String, Float> hashBuffer = new LinkedHashMap<String, Float>();
-
-		while(hashTable.size() != 0) {	
-			Entry<String, Float> maxEntry = null;
-			for(Entry<String, Float> entry : hashTable.entrySet()) {
-				if(maxEntry == null || maxEntry.getValue() < entry.getValue()) {
-					maxEntry = entry;
-				}
-			}
-			hashBuffer.put(maxEntry.getKey(), maxEntry.getValue());
-			hashTable.remove(maxEntry.getKey());
-		}
-		return hashBuffer;
-	}
-
-	public LinkedHashMap<String, Float> calculateTetragramFrequency(char[] buffer) {
-
-		LinkedHashMap<String, Float> hashTable = new LinkedHashMap<String, Float>();
-
-		String tetragram = "";
-		for(int i=0; i<(buffer.length-3); i++) {
-			char c1 = buffer[i];
-			c1 = Character.toUpperCase(c1);
-			Float val;
-
-			if(isLatinLetter(c1)) {
-				tetragram = tetragram + c1;
-				if(tetragram.length() == 4) {
-					//count the TETRAGRAMS
-					val = hashTable.get(new String(tetragram));
-					if(val != null) {
-						hashTable.put(tetragram, val+1);
-					}
-					else {
-						hashTable.put(tetragram, (float) 1);
-					}
-					tetragram =  "";	//reset the digram field
-				}
-			}
-			else {
-				//character is not a letter -> do nothing - restart the loop and look at next character
-			}
-		}
-
-		//calculate the relative frequency of the digrams
-		float totalCount = 0;
-		for(Entry<String, Float> entry : hashTable.entrySet()) {
-			totalCount += entry.getValue();
-		}
-		for(Entry<String, Float> entry: hashTable.entrySet()) {
-			entry.setValue((entry.getValue()/totalCount) *100);
-		}
-
-		//sorting the hashtable, hashBuffer will contain the new sorted hashMap
-		LinkedHashMap<String, Float> hashBuffer = new LinkedHashMap<String, Float>();
-
-		while(hashTable.size() != 0) {	
-			Entry<String, Float> maxEntry = null;
-			for(Entry<String, Float> entry : hashTable.entrySet()) {
-				if(maxEntry == null || maxEntry.getValue() < entry.getValue()) {
-					maxEntry = entry;
-				}
-			}
-			hashBuffer.put(maxEntry.getKey(), maxEntry.getValue());
-			hashTable.remove(maxEntry.getKey());
-		}
-		return hashBuffer;
-	}
 
 	/*
-	 * Calculates the relative frequency of all LETTERS in the given array of characters
+	 * Calculates the frequency of all English letters in the given array of characters
+	 * Sorts them in a hash table in descending order
 	 */
 	public LinkedHashMap<Character, Float> calculateFrequency(char[] buffer) {
 
 		LinkedHashMap<Character, Float> hashTable = new LinkedHashMap<Character, Float>();
 
 		for(int i=0; i<buffer.length; i++) {
-			//store each letter in a hash table and count the number of occurrence
+			//store each English letter in a hash table and count the number of occurrence
 			char c = buffer[i];
 			Float val;
 
 			c = Character.toUpperCase(c);
 
-			if(isLatinLetter(c)) {	//check if the character is a letter, if it is not, removed them
+			//check if the character is a letter, if it is not, ignore them
+			if(isLatinLetter(c)) {	
 				val = hashTable.get(new Character(c));
 
 				if(val != null) {
+					//character has already been added into hash table, increment counter
 					hashTable.put(c, new Float(val + 1));
 				}
 				else {
@@ -303,7 +192,8 @@ public class Cryptogram {
 			}
 
 		}
-		//print the relative frequency of "s", relative to "r"	
+		
+		/*//calculating the relative frequency	
 		float totalCount = 0;
 		for(Entry<Character, Float> entry : hashTable.entrySet()) {
 			totalCount += entry.getValue();
@@ -311,8 +201,8 @@ public class Cryptogram {
 		for(Entry<Character, Float> entry : hashTable.entrySet()) {
 			entry.setValue((entry.getValue()/totalCount) *100);
 		}
-
-		//sorting the hashtable, hashBuffer will contain the sorted hashMap
+*/
+		//sorting the hashtable, variable hashBuffer will contain the sorted hashMap
 		LinkedHashMap<Character, Float> hashBuffer = new LinkedHashMap<Character, Float>();
 
 		while(hashTable.size() != 0) {	
@@ -328,67 +218,21 @@ public class Cryptogram {
 
 		return hashBuffer;
 	}
-
-	/*
-	 * Returns the corresponding character in the hashtable, using the given index
-	 */
-	public char getLetter(int index) {
-		char c = '*';
-		
-		for(Entry<Character, Float> entry : cipherLetterFrequency.entrySet()) {
-			c=entry.getKey();
-			if(index==0) {
-				break;
-			}
-			index--;
-		}
-		
-		return c;
-	}
 	
-	/*
-	 * Returns the corresponding String in the hashtable, using the given index
-	 */
-	public String getDigram(int index) {
-		String s = null;
-		
-		for(Entry<String, Float> entry : cipherDigramFrequency.entrySet()) {
-			s=entry.getKey();
-			if(index==0) {
-				break;
-			}
-			index--;
-		}
-		
-		return s;
-	}	
-	
-	/*
-	 * Returns the corresponding String in the hashtable, using the given index
-	 */
-	public String getTrigram(int index) {
-		String s = null;
-
-		for(Entry<String, Float> entry : cipherTrigramFrequency.entrySet()) {
-			s=entry.getKey();
-			if(index==0) {
-				break;
-			}
-			index--;
-		}
-
-		return s;
-	}
-		
 	/*
 	 * Decrypt the cipherBuffer with a given key and given size of the message.
+	 * If (size==0), the function decrypts and returns the entire ciphertext.
+	 * else, the function decrypts and returns the ciphertext of given size. 
+	 * (i.e size==1000, returns a decrypted text of length 1000)
 	 */
 	public char[] decrypt(LinkedHashMap<Character, Character> mappingKEY, int size) {
 		
 		char[] decryptedMsg;
 		
 		if(size != 0) {
-			decryptedMsg = new char[size];	//decrypt a message with given size defined in the parameter.
+			//decrypt a message given the size defined in the parameter
+			
+			decryptedMsg = new char[size];	
 			for(int j=0; j<size; j++) {
 				decryptedMsg[j] = cipherText[j];
 			}	
@@ -405,7 +249,8 @@ public class Cryptogram {
 			}
 		}
 		else {
-			System.out.println(cipherText.length);
+			// size == 0, decrypts the entire ciphertext
+	
 			decryptedMsg = new char[cipherText.length];
 			for(int j=0; j<cipherText.length; j++) {
 				decryptedMsg[j] = cipherText[j];

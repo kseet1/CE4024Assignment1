@@ -2,44 +2,31 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.Stack;
 
 public class MainController {
 	
-	private static char[] alphabets = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'};
+	private final static char[] alphabets = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'};
 	private static char[] key = new char[26];
 	
 	private static LinkedHashMap<Character, Character> mappingKEY = new LinkedHashMap<Character, Character>();	//HashMap<Plaintext, Ciphertext>
 	private static ArrayList<Character> mappingKEYArray = new ArrayList<Character>();
-	private static final int bufferSize = 1500;
+	
+	private static final int bufferSize = 2000;
 	private static char[] decryptedBuffer1 = new char[bufferSize];
 	private static char[] decryptedBuffer2 = new char[bufferSize];
 	
 	private static String[] commonLetters = {"e","t","a","o","i","n","s","r","h","d","l","u","c","m","f","y","w","g","p","b","v","k","x","q","j","z"};
 	
-	private static String[] commonDigrams = {"th","he","in","er","an","re","nd","at","on","nt","ha","es","st","en","ed","to","it","ou","ea","hi","is",
-											"or","ti","as","te","et","ng","of","al","de","se","le","sa","si","ar","ve","ra","ld","ur"};
-
-	private static String[] commonTrigrams = {"the","ing","and","hat","tha","ion","you","ent","for","tio","thi","her","ati","our","ere","all","ter",
-											"ver","not","hin","ome","oul","uld","int","rea","pro","res","ate","hav","ave","ill","his","com","ons",
-											"are","ple","ers","con","ess","out","one","ith","som","ive","tin","nce","ble","ted","han"};
-	
 	private static String[] commonQuadrigrams = {"that","ther","with","tion","here","ould","ight","have","hich","whic","this","thin","they","atio",
 											"ever","from","ough","were","hing","ment", "quite"};	
 	
 	private static List<String> commonLettersArray = Arrays.asList(commonLetters);
-//	private static List<String> commonDigramsArray = Arrays.asList(commonDigrams);
-//	private static List<String> commonTrigramsArray = Arrays.asList(commonTrigrams);
 	private static List<String> commonQuadrigramsArray = Arrays.asList(commonQuadrigrams);
 	
-//	private static List<String> commonLettersArray = new ArrayList<String>();
-//	private static List<String> commonQuadrigramsArray = new ArrayList<String>();
 	private static List<String> commonDigramsArray = new ArrayList<String>();
 	private static List<String> commonTrigramsArray = new ArrayList<String>();
 	private static List<String> DigramsArray = new ArrayList<String>();
@@ -47,61 +34,70 @@ public class MainController {
 	
 	public static void main(String[] args) throws IOException {
 		
-		//WordList dictionary = new WordList("dictionary.txt");
-	    loadFrequencyFile("digramFrequency.txt", commonDigramsArray, 30);
-	    loadFrequencyFile("trigramFrequency.txt", commonTrigramsArray, 30);
-		loadFrequencyFile("digramFrequency.txt",DigramsArray, 0);
-		loadFrequencyFile("trigramFrequency.txt",TrigramsArray,0);
+	    loadFrequencyFile("digramFrequency.txt", commonDigramsArray, 30);	//load first 30 common Digrams
+	    loadFrequencyFile("trigramFrequency.txt", commonTrigramsArray, 30);	//load first 30 common Trigrams
+		loadFrequencyFile("digramFrequency.txt", DigramsArray, 0);	//load entire list of Digrams
+		loadFrequencyFile("trigramFrequency.txt", TrigramsArray,0);	//load entire list of Trigrams
 		
 		//Menu
 		System.out.println("Please enter the encrypted text file name (Including the file type (.txt): ");
 		Scanner sc = new Scanner(System.in);
 		String fileName = sc.next();
-		
+
+		//Load the ciphertext file and store it in Cryptogram Object
 		Cryptogram ciphertext = new Cryptogram(fileName);				
 	
+		//Map the most common letters in English to the most common CipherText letter
 		int index = 0;
 		for(Entry<Character, Float> entry : ciphertext.getFrequency().entrySet()) {
-			if(mappingKEYArray.contains(entry.getKey())) {
-				//skips, do not map the current key
-			}
-			else {
-				while(mappingKEY.containsKey(commonLettersArray.get(index).charAt(0))) {
-					index++;	//keep trying next index, till it can add.
-				}
-				mappingKEY.put(commonLettersArray.get(index).charAt(0), entry.getKey());
-				mappingKEYArray.add(entry.getKey());
-				index++;
-
-			}
+			mappingKEY.put(commonLettersArray.get(index).charAt(0), entry.getKey());
+			mappingKEYArray.add(entry.getKey());
+			index++;
 		}
 		
 		System.out.println("\n Initial KEY Mapping: ");
 		System.out.println(mappingKEY.toString());
+
+		//decrypt the ciphertext and store it in a buffer
 		decryptedBuffer1 = ciphertext.decrypt(mappingKEY, bufferSize); 
 		
-		int repeatCount = 0;
-		do{
+		int cyclesCount = 0;	//counter for number of cycles
+		
+		do{	
+			System.out.println("\n Decrypting... Please wait...");
+
 			for(int increment=1; increment<26; increment++) {
 				for(int k=0; k<25; k++) {
+					
 					if(k+increment > 25) {
+						//out of index range
 						break;
 					}
+					
+					//swap two keys, decrypt the ciphertext with the new key and store it in a second buffer
 					char key1 = mappingKEYArray.get(k);
 					char key2 = mappingKEYArray.get(k+increment);
 					swapKEY(key1, key2);
 					decryptedBuffer2 = ciphertext.decrypt(mappingKEY, bufferSize);
 
 					//compare the two decryptedBuffers
-					if(repeatCount<8) {
+					if(cyclesCount<8) {
+						//compare using PARTIAL list of digrams/trigrams for faster execution time
+						//faster execution due to smaller data used, use for first 8 cycles
+
 						if(compare(decryptedBuffer1, decryptedBuffer2) == 1) {
+							// decryptedBuffer1 has higher score than decryptedBuffer2, use previous KEY
 							swapKEY(key1, key2);	//swap back the key
 						}
 						else {
+							//decryptedBuffer2 has higher score than decryptedBuffer1, use current KEY
 							decryptedBuffer1 = decryptedBuffer2;
 						}
 					}
 					else {
+						//compare using FULL list of digrams/trigrams for more a more accurate decryption (for the less common letters - x,q,y,z,j,k)
+						//slower execution time due to large data used, hence only used after 8 cycles
+						
 						if(compareFull(decryptedBuffer1, decryptedBuffer2) == 1) {
 							swapKEY(key1, key2);	//swap back the key
 						}
@@ -113,9 +109,9 @@ public class MainController {
 			}
 			
 			System.out.println(decryptedBuffer1);
-			System.out.println("\n Decrypting... Please wait...");
-			repeatCount++;
-		}while(repeatCount<12);
+			cyclesCount++;
+			
+		}while(cyclesCount<12);	//cease the decryption after 12 cycles
 	
 		for(int i=0; i<alphabets.length; i++) {
 			key[i] = mappingKEY.get(alphabets[i]);
@@ -127,6 +123,7 @@ public class MainController {
 		System.out.println("Key: " + new String(key));
 		
 		while(true) {
+			//Menu
 			System.out.println("\n===============================================");
 			System.out.println("Please select an option (1-5): ");
 			System.out.println("1. Print the decrypted text");
@@ -135,25 +132,31 @@ public class MainController {
 			System.out.println("4. Exit the program");
 			System.out.println("===============================================");
 
+			//User's input
 			System.out.print("Option: ");
 			int choice = sc.nextInt();
+			
 			switch(choice){
 			case 1:
+				//prints the ENTIRE decrypted text with the current KEY
 				System.out.println(ciphertext.decrypt(mappingKEY,0));
 				break;
 			case 2: {
+				//Manually swap the keys of the two given plaintext alphabet
 				System.out.println("\nPlaintext: " + new String(alphabets));
 				System.out.println("Key: " + new String(key));
-				System.out.println("\nSelect the two KEYs you wish to swap: ");
-				System.out.print("First key: ");
+				
+				System.out.println("\nSelect the two PLAINTEXT alphabet you wish to swap: ");
+				System.out.print("First alphabet: ");
 				String input;
 				input = sc.next();
 				char key1 = input.charAt(0);
-				System.out.print("Second key: ");
+				System.out.print("Second alphabet: ");
 				input = sc.next();
 				char key2 = input.charAt(0);
 				
 				swapKEY(mappingKEY.get(key1), mappingKEY.get(key2));
+				
 				//update the key array
 				for(int i=0; i<alphabets.length; i++) {
 					key[i] = mappingKEY.get(alphabets[i]);
@@ -162,6 +165,7 @@ public class MainController {
 				break;
 			}
 			case 3: {
+				//Prints out the key
 				System.out.println("\nKEY Mapping: ");
 				System.out.println(mappingKEY.toString());
 				System.out.println("Plaintext: " + new String(alphabets));
@@ -169,6 +173,7 @@ public class MainController {
 				break;
 			}
 			case 4: {
+				//Terminates program
 				System.out.println("Terminating Program...");
 				System.exit(0);
 				break;
@@ -181,7 +186,12 @@ public class MainController {
 	}
 	
 	/*
-	 * Compare the two given decrypted buffer and return the highest score buffer
+	 * ====================================================================================
+	 * This algorithm compares the two given decrypted buffer and scores them accordingly.
+	 * returns 1 if decryptedBuffer1 has more score
+	 * returns 2 if decryptedBuffer2 has more score
+	 * uses PARTIAL list of digrams and trigrams
+	 * ====================================================================================
 	 */
 	public static int compare(char[] decryptedBuffer1, char[] decryptedBuffer2) {
 		int score1 = 0;
@@ -192,6 +202,7 @@ public class MainController {
 			String s1 = "" + decryptedBuffer1[i] + decryptedBuffer1[i+1];
 			String s2 = "" + decryptedBuffer2[i] + decryptedBuffer2[i+1];
 		
+			// score the two digrams based on how frequent they are
 			if(commonDigramsArray.contains(s1) && commonDigramsArray.contains(s2)) {
 				if(commonDigramsArray.indexOf(s1) < commonDigramsArray.indexOf(s2)) {
 					score1++;
@@ -252,7 +263,12 @@ public class MainController {
 	}
 
 	/*
-	 * Compare the two given decrypted buffer and return the highest score buffer
+	 * ====================================================================================
+	 * This algorithm compares the two given decrypted buffer and scores them accordingly.
+	 * returns 1 if decryptedBuffer1 has more score
+	 * returns 2 if decryptedBuffer2 has more score
+	 * uses the FULL list of digrams and trigrams
+	 * ====================================================================================
 	 */
 	public static int compareFull(char[] decryptedBuffer1, char[] decryptedBuffer2) {
 		int score1 = 0;
@@ -321,8 +337,10 @@ public class MainController {
 		else
 			return 2;
 	}
+
 	
 	/*
+	 * =============================================================================================
 	 * Reads the given fileName(.txt file) and place the N-Grams into the specified arrayList. 
 	 * Argument "max" indicates the maximum number of entries to be loaded into the specified list.
 	 * If (max==0), the function load ALL the N-grams in the .txt file.
@@ -331,35 +349,30 @@ public class MainController {
 	 * NOTE:
 	 * 1. It is assumed that the N-grams in the .txt files are in separate lines.
 	 * 2. It is assumed that the N-grams are sorted beginning with the most frequent N-grams.
+	 * =============================================================================================
 	 */
 	public static void loadFrequencyFile(String fileName, List<String> arrayList, int max) throws IOException {
 		try (Scanner sc = new Scanner(new File(fileName))) {
 			int i = 0;
 			if(max == 0) {
+				//loads the entire frequency file
 				while (sc.hasNextLine()) {
 		            String line = sc.nextLine();
 		            line = line.toLowerCase();
 					String[] temp = line.split("\t");
 					String s = temp[0];
-					if(s.length() == 2) {
-						arrayList.add(s);
-					} else if(s.length() == 3) {
-						arrayList.add(s);
-					}
+					arrayList.add(s);
 					i++;
 		        }
 			}
-			else {	
+			else {
+				//loads the specified max number of entries. (i.e. if(max==30), load first 30 entries from frequency file)
 				while (sc.hasNextLine() && i<max) {
 					String line = sc.nextLine();
 					line = line.toLowerCase();
 					String[] temp = line.split("\t");
 					String s = temp[0];
-					if(s.length() == 2) {
-						arrayList.add(s);
-					} else if(s.length() == 3) {
-						arrayList.add(s);
-					}
+					arrayList.add(s);
 					i++;
 				}
 			}
@@ -370,9 +383,10 @@ public class MainController {
 		}	
 	}
 	
+	
 	/*
 	 * ===========================================
-	 * Swaps the two keys, given by the keys
+	 * Swaps the two given keys
 	 * ===========================================
 	 */
 	public static void swapKEY(char firstKEY, char secondKEY) {
