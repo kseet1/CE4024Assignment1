@@ -1,4 +1,14 @@
 /**
+ * The logic of the decryption program is based on a "hill-climber" logic. The flow of the program is as follows:
+ * 1. The program generates a possible KEY by matching the frequency of letters.
+ * 2. The program decrypt the text with the possible KEY. 
+ * 3. The program then generate a new KEY by changing one of the element in the possible KEY. 
+ * 4. The program then decrypts the encrypted text with the newly generated KEY. 
+ * 5. The program then compares these two decrypted text and scores them accordingly. (See Scoring Algorithm)
+ * 6. The decrypted text with the higher score will be retained, as well as the associated KEY. 
+ * 7. The associated KEY will now be the possible KEY. (Since it is a more possible/likely KEY than the other)
+ * 8. The KEY of the lower score decrypted text will be rejected and discarded.
+ * 9. Repeat step 3-8.
  * 
  * The Decryption Algorithm consists of two main algorithm: key generator Algorithm and scoring Algorithm
  * 
@@ -10,11 +20,12 @@
  * FOR i = 1 step to 25 {
  * 	FOR j = 0 step to 24 {
  * 		swap keys at index j with index (j+i)
+ * 		//Scoring Algorithm Operation goes here
  * 	}
  * }
  * 
  * Scoring ALGORITHM:
- * The Scoring Algorithm takes two decrypted text that was decrypted using different KEYs and scores them accordingly
+ * The Scoring Algorithm takes two decrypted text that was decrypted using different KEYs and scores them accordingly.
  * It scores the decrypted text based on frequency of 2-grams, 3-grams and 4-grams.
  * 
  * PSEUDO CODE FOR SCORING ALGORITHM:
@@ -25,7 +36,7 @@
  * ELSE
  * 		do nothing when frequency are equal
  * 
- * Cycle Count: It is counted as ONE CYCLE when the outer loop of the Key Generator Algorithm completes.
+ * Cycle Count: ONE CYCLE is counted when the outer loop of the Key Generator Algorithm completes.
  * For the first 3 cycles, the Scoring Algorithm will use a small frequency list size of 30, to improve execution time.
  * With a small frequency list size, it will execute faster and it will still be able to decipher most of the common letters.
  * Subsequently after 3 cycles, the frequency list size will increment by 300, to decrypt tougher letters (especially letters with low frequency).
@@ -38,10 +49,13 @@
  * @author YEOH KENG WEI
  */
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Scanner;
@@ -52,13 +66,13 @@ public class MainController {
 	private final static char[] alphabets = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'};
 	private static char[] key = new char[26];	//Char array to store key
 	
-	//variables to store mapping KEY
-	private static LinkedHashMap<Character, Character> mappingKEY = new LinkedHashMap<Character, Character>();	//HashMap<Plaintext, Ciphertext>
+	//Variables to store mapping KEY
+	private static HashMap<Character, Character> mappingKEY = new HashMap<Character, Character>();	//HashMap<Plaintext, Ciphertext>
 	private static ArrayList<Character> mappingKEYArray = new ArrayList<Character>();
-	
-	private static final int sampleSize = 2000;
-	private static char[] decryptedBuffer1 = new char[sampleSize];
-	private static char[] decryptedBuffer2 = new char[sampleSize];
+
+	private static final int sampleSize = 2000;										//Sample size of the text to be used for decryption algorithm
+	private static char[] decryptedBuffer1 = new char[sampleSize];			//To store the decrypted text of the 'more likely' KEY
+	private static char[] decryptedBuffer2 = new char[sampleSize];		//To store the decrypted text of the challenging KEY
 	
 	private static String[] commonLetters = {"e","t","a","o","i","n","s","r","h","d","l","u","c","m","f","y","w","g","p","b","v","k","x","q","j","z"};
 	
@@ -91,7 +105,7 @@ public class MainController {
 		//Load the ciphertext file and store it in Cryptogram Object
 		Cryptogram ciphertext = new Cryptogram(fileName);				
 	
-		//Map the most common letters in English to the most common CipherText letter
+		//Generate a possible KEY, by mapping the letters by frequency of both English letters and ciphertext letters
 		int index = 0;
 		for(Entry<Character, Float> entry : ciphertext.getFrequency().entrySet()) {
 			mappingKEY.put(commonLettersArray.get(index).charAt(0), entry.getKey());
@@ -110,7 +124,7 @@ public class MainController {
 		int cyclesCount = 0;							//Counter to track the number of cycles initiated
 		boolean changeFlag = false; 					//Flag to indicate if there is a change of KEY in a cycle
 		int noChangeCount = 0;							//Counter to track the number of cycles that have no change in KEY
-		int frequencyListSize = 30;									//Size of the frequency list to use, initially 30, will slowly increment
+		int frequencyListSize = 30;						//Size of the frequency list to use, initially 30, will slowly increment
 		long startTime = System.currentTimeMillis();	//Variable for calculating the time taken to decrypt text
 		
 		//Decryption algorithm starts
@@ -123,7 +137,6 @@ public class MainController {
 					
 					//Check for out of index exception
 					if(k+increment > 25) {
-						//Out of index range
 						break;
 					}
 
@@ -144,35 +157,35 @@ public class MainController {
 						//decryptedBuffer2 has higher score than decryptedBuffer1, use current KEY
 						decryptedBuffer1 = decryptedBuffer2;
 						
-						//Prints the new decrypted text
+						//Prints the new decrypted text, when there is a change
+						System.out.println("\nDecrypted Text:");
 						System.out.println(decryptedBuffer1);
+						System.out.println("Decrypting... Please wait...");
 						changeFlag = true;	//Set changeFlag to True
 					}
 
 				}
 			}
+
 			//End of cycle
 			
 			//Increment the cycle counter at the end of each cycle
 			cyclesCount++;	
 
-			//If there is no change in the KEY, increment the noChange counter
 			if(changeFlag==false) {
 				noChangeCount++;
 			}
 
-			//If there is a change in the KEY, reset the counter
+			//If there is a change in the KEY, reset the counters
 			else {
-
-				//Increase the size of frequencyList only after the 3rd cycle
-				//This is to maintain low frequency list size initially, to improve the execution time
+				noChangeCount = 0;
+				changeFlag = false;
+				
+				//Increment the size of frequencyList only after the 3rd cycle
+				//This is to maintain low frequency list size in the initial stages, to improve the execution time
 				if(cyclesCount>3) {
 					frequencyListSize+= 300;	
 				}
-				
-				//Reset counter and flag
-				noChangeCount = 0;
-				changeFlag = false;
 			}
 			
 			//If there was no change for 2 entire cycles, stop the decryption algorithm
@@ -181,6 +194,7 @@ public class MainController {
 			}
 		}while(true);	//Keeps running the decryption algorithm, till the break condition.
 	
+		System.out.println("\nDecryption Completed!");
 		//Calculate and prints the total time taken to decrypt
 		long endTime = System.currentTimeMillis();
 		System.out.println("Took: " + (endTime-startTime) + "ms");
@@ -206,7 +220,8 @@ public class MainController {
 			System.out.println("2. Print the original ciphertext");
 			System.out.println("3. Manually swap the KEYS");
 			System.out.println("4. View KEY");
-			System.out.println("5. Exit the program");
+			System.out.println("5. Export the decrypted plaintext into a .txt file");
+			System.out.println("6. Exit the program");
 			System.out.println("===============================================");
 
 			//User's input
@@ -236,14 +251,14 @@ public class MainController {
 				do {
 					System.out.print("First alphabet (a-z OR A-Z): ");
 					input = sc.next();
-				}while((input.length()!=1)||isLatinLetter((input.charAt(0))));
+				}while((input.length()!=1)||!isLatinLetter((input.charAt(0))));
 				char key1 = input.charAt(0);
 				
 				//Keep prompting user to input, if the input is invalid
 				do{
 					System.out.print("Second alphabet (a-z OR A-Z): ");
 					input = sc.next();	
-				}while((input.length()!=1)||isLatinLetter((input.charAt(0))));
+				}while((input.length()!=1)||!isLatinLetter((input.charAt(0))));
 				char key2 = input.charAt(0);
 				
 				//Swap the two KEYs associated to the given alphabets 
@@ -265,6 +280,29 @@ public class MainController {
 				break;
 			}
 			case 5: {
+				//Output a .txt file
+				BufferedWriter writer = null;
+				File outputFile = null;
+				try {
+					outputFile = new File("plaintext.txt");
+					
+					writer = new BufferedWriter(new FileWriter(outputFile));
+					writer.write(ciphertext.decrypt(mappingKEY, 0));
+				} catch (Exception e) {
+					e.printStackTrace();
+				} finally {
+					try {
+						writer.close();
+					} catch (Exception e) {
+						
+					}
+				}
+				System.out.println("File Exported!");
+				System.out.println("File path: " + outputFile.getCanonicalPath());
+				break;
+			}
+			case 6: {
+				
 				//Terminates program
 				System.out.println("Terminating Program...");
 				System.exit(0);

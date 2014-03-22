@@ -1,4 +1,6 @@
 /**
+ * This is a Class Object for holding the data of the cipher text
+ * 
  * @author SEET YONG SONG, KENNY
  * @author TAY JIN HENG
  * @author YEOH KENG WEI
@@ -8,6 +10,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
 
@@ -242,7 +245,7 @@ public class Cryptogram {
 	 * @param size 				an integer indicating the size of the ciphertext to be decrypted
 	 * @return decryptedMsg 	an array of char containing the decrypted ciphertext
 	 */
-	public char[] decrypt(LinkedHashMap<Character, Character> mappingKEY, int size) {
+	public char[] decrypt(HashMap<Character, Character> mappingKEY, int size) {
 		
 		char[] decryptedMsg;
 	
