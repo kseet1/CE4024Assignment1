@@ -1,10 +1,81 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.StringTokenizer;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
+
 // This is a class template for Assignment 2 for the course
 // CCE4024/CPE413/CSC409/CZ4024 - Cryptography and Network Security
 
 
 
 public class Assignment2 {
-
+	
+	private static class Hash {
+		public String username;
+		public String id;
+		public String salt;
+		public String hashValue;
+		public String cryptSalt;
+		public String hashCheck;
+		
+		public Hash(String username, String id, String salt, String hashValue) {
+			this.username = username;
+			this.id = id;
+			this.salt = salt;
+			this.hashValue = hashValue;
+			this.cryptSalt = "$"+id+"$"+salt;
+			this.hashCheck = this.cryptSalt+"$"+hashValue;
+		}
+		
+		@Override
+		public boolean equals(Object object) {
+			if (object != null && object instanceof String) {
+				return object.equals(this.hashCheck);
+			}
+			return false;
+		}
+	}
+	public static class PasswordTransformThread extends Thread {
+		public String word;
+		public PasswordTransformThread(String word) {
+			this.word = word;
+		}
+		public void run() {
+			//System.out.println("Running Password Transform Rule.");
+			putIntoQueue(passwordQ, this.word);
+		}
+	}
+	public static class PasswordValidationThread extends Thread {
+		public String password;
+		public PasswordValidationThread(String password) {
+			this.password = password;
+		}
+		public void run() {
+			//System.out.println("Running Password Validation.");
+			for (Hash hashObject : hashes) {
+				String hash = Crypt.crypt(this.password, hashObject.cryptSalt);
+				if (hash.equals(hashObject.hashCheck)) {
+					System.out.println("Password Validated: "+hashObject.username+":"+this.password);
+					putIntoQueue(validatedQ, hashObject.username+":"+this.password);
+					//break; // Maybe some other users use the same passwords.
+				}
+			}
+		}
+	}
+	public static ArrayList<String> dictionary = new ArrayList<String>();
+	public static ArrayList<Hash> hashes = new ArrayList<Hash>();
+	public static BlockingQueue<String> wordQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> passwordQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> validatedQ = new LinkedBlockingQueue<String>();
+	public static ExecutorService passwordTransformThreadPool = Executors.newFixedThreadPool(5);
+	public static ExecutorService passwordValidationThreadPool = Executors.newFixedThreadPool(5);
+	
 	public static void main(String args[])
 	{
 		
@@ -19,6 +90,77 @@ public class Assignment2 {
 		
 		System.out.print("Hash of hello with salt dbCiCUMY using MD5 crypt: " + hash);
 		// END OF SAMPLE CODES
+		System.out.println();
+		try {
+			loadHashes("hash.txt");
+			loadDictionary("dict.txt");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(-1);
+		}
+		startAttack();
+	}
+
+	public static void loadHashes(String filename) throws IOException {
+		BufferedReader br = new BufferedReader(new FileReader(filename));
+		String line;
+		while ((line = br.readLine()) != null) {
+			StringTokenizer st = new StringTokenizer(line, "$");
+			Hash hash = new Hash(st.nextToken(), st.nextToken(), st.nextToken(), st.nextToken());
+			hashes.add(hash);
+		}
+		br.close();
 	}
 	
+	public static void loadDictionary(String filename) throws IOException {
+		BufferedReader br = new BufferedReader(new FileReader(filename));
+		String line;
+		while ((line = br.readLine()) != null) {
+		   dictionary.add(line);
+		}
+		br.close();
+	}
+	
+	public static void putIntoQueue(BlockingQueue<String> queue, String item) {
+		boolean added = false;
+		while (!added) {
+			try {
+				queue.put(item);
+				added = true;
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+	}
+	
+	public static void startAttack() {
+		try {
+			wordQ = new LinkedBlockingQueue<String>(dictionary);
+			boolean finished = false;
+			while (!finished) {
+				String word = null;
+				String password = null;
+				if ((word = wordQ.poll()) != null) {
+					passwordTransformThreadPool.execute(new PasswordTransformThread(word));
+				}
+				if ((password = passwordQ.poll()) != null) {
+					passwordValidationThreadPool.execute(new PasswordValidationThread(password));
+				}
+				if ((validatedQ.size() >= 10 )) {
+					finished = true;
+					System.out.println(validatedQ.poll());
+					System.out.println(validatedQ.poll());
+					System.out.println(validatedQ.poll());
+				}
+			}
+		}
+		finally {
+			passwordTransformThreadPool.shutdown();
+			passwordValidationThreadPool.shutdown();
+			while (!passwordTransformThreadPool.isTerminated());
+			while (!passwordValidationThreadPool.isTerminated());
+			System.out.println("Attack finished.");
+		}
+	}
 }
