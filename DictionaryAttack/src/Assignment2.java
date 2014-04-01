@@ -55,6 +55,7 @@ public class Assignment2 {
 			passwords.add(this.word);
 			//character_substitution_rule(passwords);
 			number_prefix_suffix_rule(passwords);
+			multiple_words_rule(passwords);
 			for (String password : passwords) {
 				if (password.length() >= PASSWORD_MIN_LENGTH && 
 					password.length() <= PASSWORD_MAX_LENGTH) {
@@ -89,6 +90,42 @@ public class Assignment2 {
 				}
 			}
 		}
+		public void multiple_words_rule(List<String> passwords) {
+			String temp = null;
+			int pSize = passwords.size();
+			
+			for (int i=0; i<pSize ; i++) {
+				for (int j=0; j<pSize; j++) {
+					String s1 = passwords.get(i);
+					String s2 = passwords.get(j);
+					temp = s1 + s2;
+					if (temp.length() >= PASSWORD_MIN_LENGTH && 
+							temp.length() <= PASSWORD_MAX_LENGTH) {
+						passwords.add(temp);
+					}
+					if (temp.length() <= PASSWORD_MAX_LENGTH) { //still able to append another word
+						//search for additional string to append
+						addWord(passwords, temp);
+					}
+					
+				}
+			}			
+		}
+		private static void addWord(List<String> passwords, String word) {
+			String temp = null;
+			int pSize = passwords.size();
+			for (int j=0; j<pSize;j++) {
+				temp = word + passwords.get(j);
+				if (temp.length() >= PASSWORD_MIN_LENGTH &&
+						temp.length() <= PASSWORD_MAX_LENGTH) {
+					passwords.add(temp);
+				}
+				if (temp.length() <= PASSWORD_MAX_LENGTH) {
+					addWord(passwords, temp);
+				}
+			}
+			word = temp;
+		}
 	}
 	public static class PasswordValidationThread extends Thread {
 		public String password;
@@ -116,8 +153,9 @@ public class Assignment2 {
 	public static BlockingQueue<String> wordQ = new LinkedBlockingQueue<String>();
 	public static BlockingQueue<String> passwordQ = new LinkedBlockingQueue<String>();
 	public static BlockingQueue<String> validatedQ = new LinkedBlockingQueue<String>();
-	public static ExecutorService passwordTransformThreadPool = Executors.newFixedThreadPool(10);
-	public static ExecutorService passwordValidationThreadPool = Executors.newFixedThreadPool(3000);
+	public static final int nrOfProcessors = Runtime.getRuntime().availableProcessors();
+	public static ExecutorService passwordTransformThreadPool = Executors.newFixedThreadPool(1);
+	public static ExecutorService passwordValidationThreadPool = Executors.newFixedThreadPool(nrOfProcessors - 1);
 	
 	public static void main(String args[])
 	{
