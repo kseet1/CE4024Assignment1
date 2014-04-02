@@ -3,6 +3,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -23,7 +24,7 @@ public class Assignment2 {
 	public static int PASSWORD_MAX_LENGTH = 8;
 	public static int PASSWORD_MIN_LENGTH = 5;
 	public static HashMap<Integer, ArrayList<String>> dictionary = new HashMap<Integer, ArrayList<String>>();
-	public static ArrayList<Hash> hashes = new ArrayList<Hash>();
+	public static BlockingQueue<Hash> hashes = new LinkedBlockingQueue<Hash>();
 	public static BlockingQueue<String> wordQ = new LinkedBlockingQueue<String>();
 	public static BlockingQueue<String> passwordQ = new LinkedBlockingQueue<String>();
 	public static BlockingQueue<String> validatedQ = new LinkedBlockingQueue<String>();
@@ -66,7 +67,7 @@ public class Assignment2 {
 				words.addAll(dictionary.get(i));
 			}
 			for (String word : words) {
-				//character_substitution_rule(word);
+				character_substitution_rule(word);
 			}
 			multiple_words_rule();
 			words.clear();
@@ -74,7 +75,7 @@ public class Assignment2 {
 				words.addAll(dictionary.get(i));
 			}
 			for (String word : words) {
-				//number_prefix_suffix_rule(word);
+				number_prefix_suffix_rule(word);
 			}
 		}
 		public void character_substitution_rule(String word) {
@@ -172,9 +173,10 @@ public class Assignment2 {
 			//System.out.println("Running Password Validation.");
 			String password;
 			boolean finished = false;
+			ArrayList<Hash> hashList = new ArrayList<Hash>(hashes);
 			while (!finished) {
 				if ((password = passwordQ.poll()) != null) {
-					for (Hash hashObject : hashes) {
+					for (Hash hashObject : hashList) {
 						String hash = Crypt.crypt(password, hashObject.cryptSalt);
 						if (hash.equals(hashObject.hashCheck)) {
 							System.out.println(hashObject.username+":"+password);
