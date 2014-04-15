@@ -23,13 +23,25 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class Assignment2 {
 	public static int PASSWORD_MAX_LENGTH = 8;
 	public static int PASSWORD_MIN_LENGTH = 5;
+	public static int remainingDictionaryPasswords = 6;
+	public static int remainingSuffixPrefixPasswords = 8;
+	public static int remainingLeetspeakPasswords = 3;
+	public static int remainingCombinationPasswords = 2;
+	public static int remainingDoubleTransformPasswords = 1;
+	public static long validationCounter=0;
 	public static HashMap<Integer, ArrayList<String>> dictionary = new HashMap<Integer, ArrayList<String>>();
 	public static BlockingQueue<Hash> hashes = new LinkedBlockingQueue<Hash>();
 	public static BlockingQueue<String> wordQ = new LinkedBlockingQueue<String>();
 	public static BlockingQueue<String> passwordQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> suffixPasswordQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> multiplePasswordQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> leetspeakPasswordQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> secondTransformQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> secondTransformPasswordQ = new LinkedBlockingQueue<String>();
 	public static BlockingQueue<String> validatedQ = new LinkedBlockingQueue<String>();
+	public static int numberOfProcessors = Runtime.getRuntime().availableProcessors();
 	public static ExecutorService passwordTransformThreadPool = Executors.newFixedThreadPool(1);
-	public static ExecutorService passwordValidationThreadPool = Executors.newFixedThreadPool(4);
+	public static ExecutorService passwordValidationThreadPool = Executors.newFixedThreadPool(numberOfProcessors/2 +1);
 	
 	private static class Hash {
 		public String username;
@@ -63,22 +75,54 @@ public class Assignment2 {
 		public void run() {
 			//System.out.println("Running Password Transform Rule.");
 			ArrayList<String> words = new ArrayList<String>();
-			for (int i=PASSWORD_MIN_LENGTH; i<=PASSWORD_MAX_LENGTH; i++) {
-				words.addAll(dictionary.get(i));
-			}
-			for (String word : words) {
-				character_substitution_rule(word);
-			}
-			multiple_words_rule();
-			words.clear();
 			for (int i=PASSWORD_MIN_LENGTH-2; i<=PASSWORD_MAX_LENGTH-2; i++) {
 				words.addAll(dictionary.get(i));
 			}
 			for (String word : words) {
 				number_prefix_suffix_rule(word);
 			}
+			System.out.println("Suffix Done");
+			words.clear();
+			for (int i=PASSWORD_MIN_LENGTH; i<=PASSWORD_MAX_LENGTH; i++) {
+				words.addAll(dictionary.get(i));
+			}
+			for (String word : words) {
+				character_substitution_rule(word);
+			}
+			System.out.println("Subsitutition Done");
+			multiple_words_rule();
+			System.out.println("Combination Done");
+			second_transform();
+			System.out.println("Second Transform Done");
 		}
-		public void character_substitution_rule(String word) {
+		private void second_transform() {
+			ArrayList<String> words = new ArrayList<String>();
+			String temp = null;
+			for (ArrayList<String> list : dictionary.values())
+				words.addAll(list);
+			String word;
+			while(((word=secondTransformQ.poll())!=null)||(hashes.size()!=0)) {
+				for(int i=0; i<words.size(); i++) {
+					while(secondTransformPasswordQ.size()>1500) {
+						try {
+							if(hashes.size()==0)
+								break;
+							Thread.sleep(0);
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
+					temp = word+words.get(i);
+					if((temp.length()>=PASSWORD_MIN_LENGTH)&&(temp.length()<=PASSWORD_MAX_LENGTH)) {
+						putIntoQueue(secondTransformPasswordQ, temp);
+						//temp = words.get(i)+word;
+						//putIntoQueue(secondTransformPasswordQ, temp);
+					}
+				}
+			}
+		}
+		private void character_substitution_rule(String word) {
 			/**
 			 * i - 1
 			 * e - 3
@@ -87,90 +131,76 @@ public class Assignment2 {
 			 * t - 7
 			 * o - 0
 			 **/
+			String temp = word;
 			LinkedHashSet<String> words = new LinkedHashSet<String>();
-			if (word.contains("i"))
-				words.add(word.replace("i", "1"));
-			if (word.contains("e"))
-				words.add(word.replace("e", "3"));
-			if (word.contains("a"))
-				words.add(word.replace("a", "4"));
-			if (word.contains("s"))
-				words.add(word.replace("s", "5"));
-			if (word.contains("t"))
-				words.add(word.replace("t", "7"));
-			if (word.contains("o"))
-				words.add(word.replace("o", "0"));
-			if (word.matches("(.*)[ieasto](.*)"))
-				words.add(word.replace("i", "1")
+			if (temp.contains("i"))
+				words.add(temp.replace("i", "1"));
+			if (temp.contains("e"))
+				words.add(temp.replace("e", "3"));
+			if (temp.contains("a"))
+				words.add(temp.replace("a", "4"));
+			if (temp.contains("s"))
+				words.add(temp.replace("s", "5"));
+			if (temp.contains("t"))
+				words.add(temp.replace("t", "7"));
+			if (temp.contains("o"))
+				words.add(temp.replace("o", "0"));
+			if (temp.matches("(.*)[ieasto](.*)"))
+				words.add(temp.replace("i", "1")
 							  .replace("e", "3")
 							  .replace("a", "4")
 							  .replace("s", "5")
 							  .replace("t", "7")
 							  .replace("o", "0"));
-			for (String password : words) putIntoQueue(passwordQ, password);
+			for (String password : words) putIntoQueue(leetspeakPasswordQ, password);
 		}
-		public void multiple_words_rule() {
+		private void multiple_words_rule() {
 			String temp = null;
 			ArrayList<String> words = new ArrayList<String>();
 			for (ArrayList<String> list : dictionary.values())
 				words.addAll(list);
 			int wSize = words.size();
-			
-			for (int i=0; i<wSize ; i++) {
+			for (int i=0; i<wSize; i++) {
 				for (int j=0; j<wSize; j++) {
-					String s1 = words.get(i);
-					String s2 = words.get(j);
-					temp = s1 + s2;
-					if (temp.length() >= PASSWORD_MIN_LENGTH && 
-						temp.length() <= PASSWORD_MAX_LENGTH) {
-						putIntoQueue(passwordQ, temp);
-						temp = s2 + s1;
-						putIntoQueue(passwordQ, temp);
+					temp = words.get(i) + words.get(j);
+					if ((temp.length()>=PASSWORD_MIN_LENGTH)&&(temp.length()<=PASSWORD_MAX_LENGTH)) {
+						putIntoQueue(multiplePasswordQ,temp);
+						temp = words.get(j) + words.get(i);
+						putIntoQueue(multiplePasswordQ,temp);
 					}
-					if (temp.length() <= PASSWORD_MAX_LENGTH) { //still able to append another word
-						//search for additional string to append
-						addWord(words, temp);
-						temp = s2 + s1;
-						addWord(words, temp);
-					}
-					
 				}
 			}			
 		}
-		private static void addWord(List<String> words, String word) {
-			String temp = null;
-			int wSize = words.size();
-			for (int j=0; j<wSize;j++) {
-				temp = word + words.get(j);
-				if (temp.length() >= PASSWORD_MIN_LENGTH &&
-						temp.length() <= PASSWORD_MAX_LENGTH) {
-					putIntoQueue(passwordQ, temp);
-					temp = words.get(j) + word;
-					putIntoQueue(passwordQ, temp);
-				}
-				if (temp.length() <= PASSWORD_MAX_LENGTH) {
-					addWord(words, temp);
-					temp = words.get(j) + word;
-					addWord(words, temp);
-				}
-			}
-			word = temp;
-		}
-		public void number_prefix_suffix_rule(String word) {
+		private void number_prefix_suffix_rule(String word) {
 			String temp;
 			if (word.matches("(.*)[0-9](.*)")) return; // Omit the password if numbers are already present.
 			for (int j=0; j<100; j++) { // Appends or prepends at most 2 numbers.
 				temp = word+j;
-				putIntoQueue(passwordQ, temp);
+				putIntoQueue(suffixPasswordQ, temp);
+				putIntoQueue(secondTransformQ, temp);
 				temp = j+word;
-				putIntoQueue(passwordQ, temp);
+				putIntoQueue(suffixPasswordQ, temp);
+				//putIntoQueue(secondTransformQ, temp);
 			}
 		}
 	}
 	public static class PasswordValidationThread extends Thread {
+		/**
+		 * ValidationMode
+		 * 0 - normal word
+		 * 1 - suffix/prefix 
+		 * 2 - leetspeak
+		 * 3 - combination
+		 * 4 - double transform
+		 */
+		BlockingQueue<String> passwordQ;
+		int validationMode;
+		PasswordValidationThread(BlockingQueue<String> passwordQ, int mode) {
+			this.passwordQ = passwordQ;
+			this.validationMode = mode;
+		}
 		public void run() {
-			//long startTime = System.currentTimeMillis();
-			//System.out.println("Running Password Validation.");
+			//System.out.println("Running validation thread");
 			String password;
 			boolean finished = false;
 			ArrayList<Hash> hashList = new ArrayList<Hash>(hashes);
@@ -182,18 +212,53 @@ public class Assignment2 {
 							System.out.println(hashObject.username+":"+password);
 							putIntoQueue(validatedQ, hashObject.username+":"+password);
 							hashes.remove(hashObject);
-							//break; // Commented because maybe some other users use the same passwords.
+							switch(validationMode) {
+							case 0: 
+								remainingDictionaryPasswords--;
+								break;
+							case 1:
+								remainingSuffixPrefixPasswords--;
+								break;
+							case 2:
+								remainingLeetspeakPasswords--;
+								break;
+							case 3:
+								remainingCombinationPasswords--;
+								break;
+							case 4: 
+								remainingDoubleTransformPasswords--;
+								break;
+							default: break;
+							}
+							break; // Commented because maybe some other users use the same passwords.
 						}
 					}
+					validationCounter++;
 				}
-				if (passwordQ.size() <= 0) finished = true;
+				if (passwordQ.size()<=0) finished = true;
+				switch(validationMode) {
+				case 0:
+					if(remainingDictionaryPasswords==0) finished=true;
+					break;
+				case 1:
+					if(remainingSuffixPrefixPasswords==0) finished=true;
+					break;
+				case 2:
+					if(remainingLeetspeakPasswords==0) finished=true;
+					break;
+				case 3:
+					if(remainingCombinationPasswords==0) finished=true;
+					break;
+				case 4:
+					if(remainingDoubleTransformPasswords==0) finished=true;
+					break;
+				default: break;
+				}
 			}
-			//long endTime = System.currentTimeMillis();
-			//System.out.println((endTime - startTime));
 		}
 	}
 	
-	public static void main(String args[])
+	public static void main(String args[]) throws InterruptedException
 	{
 		
 		// SAMPLE CODES: REMOVE FROM YOUR FINAL SUBMISSION
@@ -220,6 +285,10 @@ public class Assignment2 {
 		startAttack();
 		long endTime = System.currentTimeMillis();
 		System.out.println("Took "+(endTime - startTime)+"ms");
+		String validatedPassword;
+		while((validatedPassword=validatedQ.poll())!=null) {
+			System.out.println(validatedPassword);
+		}
 	}
 
 	public static void loadHashes(String filename) throws IOException {
@@ -244,8 +313,6 @@ public class Assignment2 {
 			}
 			wordList.add(line);
 		}
-		//for (int key : dictionary.keySet())
-		//	System.out.println(key+": "+dictionary.get(key).size());
 		br.close();
 	}
 	
@@ -261,31 +328,54 @@ public class Assignment2 {
 		}
 	}
 	
-	public static void startAttack() {
+	public static void startAttack() throws InterruptedException {
 		for (int i=1; i<=PASSWORD_MAX_LENGTH; i++) {
 			if (i>=PASSWORD_MIN_LENGTH)
 				passwordQ.addAll(dictionary.get(i)); // Process dictionary words first.
 		}
-		passwordTransformThreadPool.execute(new PasswordTransformThread());
-		for (int i=0; i<4; i++) {
-			passwordValidationThreadPool.execute(new PasswordValidationThread());
-		}
+		passwordValidationThreadPool.execute(new PasswordTransformThread());
+		
+		Thread.sleep(1000);
+		passwordValidationThreadPool.execute(new PasswordValidationThread(passwordQ,0));
+		passwordValidationThreadPool.execute(new PasswordValidationThread(suffixPasswordQ,1));
+		passwordValidationThreadPool.execute(new PasswordValidationThread(leetspeakPasswordQ,2));
+		passwordValidationThreadPool.execute(new PasswordValidationThread(multiplePasswordQ,3));
+		passwordValidationThreadPool.execute(new PasswordValidationThread(secondTransformPasswordQ,4));
+		long startTime = System.currentTimeMillis();
 		boolean finished = false;
 		while (!finished) {
 			if (wordQ.size() <= 0 && !passwordTransformThreadPool.isShutdown()) {
 				passwordTransformThreadPool.shutdown();
 			}
-			if (passwordQ.size() <= 0) {
-				//(validatedQ.size() >= 12 ) && 
+			if (((passwordQ.size()<=0)&&(suffixPasswordQ.size()<=0)&&(leetspeakPasswordQ.size()<=0)&&(multiplePasswordQ.size()<=0)&&(secondTransformPasswordQ.size()<=0))||
+					(hashes.size()==0)) { 
 				finished = true;
-				//String output;
-				//while ((output = validatedQ.poll()) != null) System.out.println(output);
+				//passwordValidationThreadPool.shutdownNow();
 			}
-			System.out.println("Words: "+wordQ.size());
+			if ((suffixPasswordQ.size()!=0)&&(remainingSuffixPrefixPasswords!=0)) 
+				passwordValidationThreadPool.execute(new PasswordValidationThread(suffixPasswordQ,1));
+			else if ((leetspeakPasswordQ.size()!=0)&&(remainingLeetspeakPasswords!=0))
+				passwordValidationThreadPool.execute(new PasswordValidationThread(leetspeakPasswordQ,2));
+			else if ((multiplePasswordQ.size()!=0)&&(remainingCombinationPasswords!=0)) 
+				passwordValidationThreadPool.execute(new PasswordValidationThread(multiplePasswordQ,3));
+			else if ((secondTransformPasswordQ.size()!=0)&&(remainingDoubleTransformPasswords!=0))
+				passwordValidationThreadPool.execute(new PasswordValidationThread(secondTransformPasswordQ,4));
+				
+			startTime = System.currentTimeMillis();
+			//System.out.println("Words: "+wordQ.size());
 			System.out.println("Passwords: "+passwordQ.size());
+			System.out.println("Suffix PasswordQ: "+suffixPasswordQ.size());
+			System.out.println("Leetspeak PasswordQ: "+leetspeakPasswordQ.size());
+			System.out.println("Combinator PasswordQ: "+multiplePasswordQ.size());
+			System.out.println("SecondTransform PasswordQ: "+secondTransformPasswordQ.size());
 			System.out.println("Hashes remaining: "+hashes.size());
 			try {
 				Thread.sleep(10000);
+				//Print the validation speed
+				long stopTime = System.currentTimeMillis();
+				System.out.println("Validation Speed (word/sec): "+validationCounter/((stopTime-startTime)/1000));
+				validationCounter = 0;
+				
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 			}
