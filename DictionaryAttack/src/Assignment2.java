@@ -2,44 +2,30 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.ThreadPoolExecutor;
-
-// This is a class template for Assignment 2 for the course
-// CCE4024/CPE413/CSC409/CZ4024 - Cryptography and Network Security
-
 
 
 public class Assignment2 {
 	public static int PASSWORD_MAX_LENGTH = 8;
 	public static int PASSWORD_MIN_LENGTH = 5;
-	public static int remainingDictionaryPasswords = 6;
-	public static int remainingSuffixPrefixPasswords = 8;
-	public static int remainingLeetspeakPasswords = 3;
-	public static int remainingCombinationPasswords = 2;
-	public static int remainingDoubleTransformPasswords = 1;
-	public static long validationCounter=0;
+	public static int validationCounter = 0;
 	public static HashMap<Integer, ArrayList<String>> dictionary = new HashMap<Integer, ArrayList<String>>();
 	public static BlockingQueue<Hash> hashes = new LinkedBlockingQueue<Hash>();
-	public static BlockingQueue<String> wordQ = new LinkedBlockingQueue<String>();
-	public static BlockingQueue<String> passwordQ = new LinkedBlockingQueue<String>();
-	public static BlockingQueue<String> suffixPasswordQ = new LinkedBlockingQueue<String>();
-	public static BlockingQueue<String> multiplePasswordQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> dictionaryPasswordQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> prefixSuffixPasswordQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> combinationPasswordQ = new LinkedBlockingQueue<String>();
 	public static BlockingQueue<String> leetspeakPasswordQ = new LinkedBlockingQueue<String>();
-	public static BlockingQueue<String> secondTransformQ = new LinkedBlockingQueue<String>();
-	public static BlockingQueue<String> secondTransformPasswordQ = new LinkedBlockingQueue<String>();
-	public static int numberOfProcessors = Runtime.getRuntime().availableProcessors();
-	public static ExecutorService threadPool = Executors.newFixedThreadPool(numberOfProcessors/2 +1);
+	public static BlockingQueue<String> suffixCombinationQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> suffixCombinationPasswordQ = new LinkedBlockingQueue<String>();
+	public static BlockingQueue<String> debugQ = new LinkedBlockingQueue<String>();
+ 	public static int numberOfProcessors = Runtime.getRuntime().availableProcessors();
+	public static ExecutorService threadPool = Executors.newFixedThreadPool(numberOfProcessors);
 	
 	private static class Hash {
 		public String username;
@@ -69,56 +55,38 @@ public class Assignment2 {
 			return false;
 		}
 	}
+	
 	public static class PasswordTransformThread extends Thread {
 		public void run() {
 			//System.out.println("Running Password Transform Rule.");
 			ArrayList<String> words = new ArrayList<String>();
-			for (int i=PASSWORD_MIN_LENGTH-2; i<=PASSWORD_MAX_LENGTH-2; i++) {
-				words.addAll(dictionary.get(i));
-			}
-			for (String word : words) {
-				number_prefix_suffix_rule(word);
-			}
-			//System.out.println("Suffix Done");
-			words.clear();
-			for (int i=PASSWORD_MIN_LENGTH; i<=PASSWORD_MAX_LENGTH; i++) {
-				words.addAll(dictionary.get(i));
-			}
-			for (String word : words) {
-				character_substitution_rule(word);
-			}
-			//System.out.println("Subsitutition Done");
-			multiple_words_rule();
-			//System.out.println("Combination Done");
-			second_transform();
-			//System.out.println("Second Transform Done");
-		}
-		private void second_transform() {
-			ArrayList<String> words = new ArrayList<String>();
-			String temp = null;
-			for (ArrayList<String> list : dictionary.values())
-				words.addAll(list);
-			String word;
-			while(((word=secondTransformQ.poll())!=null)||(hashes.size()!=0)) {
-				for(int i=0; i<words.size(); i++) {
-					while(secondTransformPasswordQ.size()>1500) {
-						try {
-							if(hashes.size()==0)
-								break;
-							Thread.sleep(0);
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-					}
-					temp = word+words.get(i);
-					if((temp.length()>=PASSWORD_MIN_LENGTH)&&(temp.length()<=PASSWORD_MAX_LENGTH)) {
-						putIntoQueue(secondTransformPasswordQ, temp);
-					}
+			try {
+				for (int i=PASSWORD_MIN_LENGTH; i<=PASSWORD_MAX_LENGTH; i++) {
+					words.addAll(dictionary.get(i));
 				}
+				for (String word : words) {
+					leetspeak_substitution_rule(word);
+				}
+				//System.out.println("Leetspeak Substitution Done");
+				words.clear();
+				for (int i=PASSWORD_MIN_LENGTH-2; i<=PASSWORD_MAX_LENGTH-2; i++) {
+					words.addAll(dictionary.get(i));
+				}
+				for (String word : words) {
+					number_prefix_suffix_rule(word);
+				}
+				//System.out.println("Prefix Suffix Done");
+				words_combination_rule();
+				//System.out.println("Combination Done");
+				suffix_combination_rule();
+				//System.out.println("Suffix-Combination Done");
+			} catch (InterruptedException e) {
+				Thread.interrupted();
+				return;
 			}
 		}
-		private void character_substitution_rule(String word) {
+		
+		private void leetspeak_substitution_rule(String word) throws InterruptedException {
 			/**
 			 * i - 1
 			 * e - 3
@@ -148,9 +116,22 @@ public class Assignment2 {
 							  .replace("s", "5")
 							  .replace("t", "7")
 							  .replace("o", "0"));
-			for (String password : words) putIntoQueue(leetspeakPasswordQ, password);
+			for (String password : words) leetspeakPasswordQ.put(password);
 		}
-		private void multiple_words_rule() {
+		
+		private void number_prefix_suffix_rule(String word) throws InterruptedException {
+			String temp;
+			if (word.matches("(.*)[0-9](.*)")) return; // Omit the password if numbers are already present.
+			for (int j=0; j<100; j++) { // Appends or prepends at most 2 numbers.
+				temp = word+j;
+				prefixSuffixPasswordQ.put(temp);
+				suffixCombinationQ.put(temp);
+				temp = j+word;
+				prefixSuffixPasswordQ.put(temp);
+			}
+		}
+		
+		private void words_combination_rule() throws InterruptedException {
 			String temp = null;
 			ArrayList<String> words = new ArrayList<String>();
 			for (ArrayList<String> list : dictionary.values())
@@ -160,115 +141,175 @@ public class Assignment2 {
 				for (int j=0; j<wSize; j++) {
 					temp = words.get(i) + words.get(j);
 					if ((temp.length()>=PASSWORD_MIN_LENGTH)&&(temp.length()<=PASSWORD_MAX_LENGTH)) {
-						putIntoQueue(multiplePasswordQ,temp);
+						combinationPasswordQ.put(temp);
 						temp = words.get(j) + words.get(i);
-						putIntoQueue(multiplePasswordQ,temp);
+						combinationPasswordQ.put(temp);
 					}
 				}
 			}			
 		}
-		private void number_prefix_suffix_rule(String word) {
-			String temp;
-			if (word.matches("(.*)[0-9](.*)")) return; // Omit the password if numbers are already present.
-			for (int j=0; j<100; j++) { // Appends or prepends at most 2 numbers.
-				temp = word+j;
-				putIntoQueue(suffixPasswordQ, temp);
-				putIntoQueue(secondTransformQ, temp);
-				temp = j+word;
-				putIntoQueue(suffixPasswordQ, temp);
+		
+		private void suffix_combination_rule() throws InterruptedException {
+			ArrayList<String> words = new ArrayList<String>();
+			String temp = null;
+			for (ArrayList<String> list : dictionary.values())
+				words.addAll(list);
+			String word;
+			while(((word=suffixCombinationQ.poll())!=null)||(hashes.size()!=0)) {
+				while(suffixCombinationPasswordQ.size()>50000 && hashes.size() > 0) {
+					Thread.sleep(3000);
+				}
+				for(int i=0; i<words.size(); i++) {
+					temp = word+words.get(i);
+					if((temp.length()>=PASSWORD_MIN_LENGTH)&&(temp.length()<=PASSWORD_MAX_LENGTH)) {
+						suffixCombinationPasswordQ.put(temp);
+					}
+				}
 			}
 		}
+		
 	}
+	
 	public static class PasswordValidationThread extends Thread {
 		/**
 		 * ValidationMode
-		 * 0 - normal word
-		 * 1 - suffix/prefix 
-		 * 2 - leetspeak
+		 * 0 - dictionary word
+		 * 1 - leetspeak
+		 * 2 - suffix/prefix 
 		 * 3 - combination
-		 * 4 - double transform
+		 * 4 - suffix combination / double transform
 		 */
 		BlockingQueue<String> passwordQ;
 		int validationMode;
-		PasswordValidationThread(BlockingQueue<String> passwordQ, int mode) {
-			this.passwordQ = passwordQ;
-			this.validationMode = mode;
+		Thread mainThread;
+		PasswordValidationThread(int mode, Thread main) {
+			this.setMode(mode);
+			this.mainThread = main;
 		}
+		
+		private void setMode(int mode) {
+			this.validationMode = mode;
+			switch(mode) {
+			case 0:
+				this.passwordQ = dictionaryPasswordQ;
+				break;
+			case 1:
+				this.passwordQ = leetspeakPasswordQ;
+				break;
+			case 2:
+				this.passwordQ = prefixSuffixPasswordQ;
+				break;
+			case 3:
+				this.passwordQ = combinationPasswordQ;
+				break;
+			case 4:
+				this.passwordQ = suffixCombinationPasswordQ;
+				break;
+			default:
+				break;
+			}
+		}
+		
 		public void run() {
 			//System.out.println("Running validation thread");
 			String password;
 			boolean finished = false;
 			ArrayList<Hash> hashList = new ArrayList<Hash>(hashes);
+			while (this.passwordQ.size() == 0);
 			while (!finished) {
-				if ((password = passwordQ.poll()) != null) {
+				if ((password = this.passwordQ.poll()) != null) {
+					if (hashList.size() != hashes.size()) {
+						if (hashes.size() == 0) {
+							finished = true;
+							break;
+						} else {
+							hashList = new ArrayList<Hash>(hashes);
+						}
+					}
 					for (Hash hashObject : hashList) {
 						String hash = Crypt.crypt(password, hashObject.cryptSalt);
 						if (hash.equals(hashObject.hashCheck)) {
-							System.out.print(hashObject.username+":"+password+"\n");
+							System.out.println(hashObject.username+":"+password);
 							hashes.remove(hashObject);
-							switch(validationMode) {
-							case 0: 
-								remainingDictionaryPasswords--;
-								break;
-							case 1:
-								remainingSuffixPrefixPasswords--;
-								break;
-							case 2:
-								remainingLeetspeakPasswords--;
-								break;
-							case 3:
-								remainingCombinationPasswords--;
-								break;
-							case 4: 
-								remainingDoubleTransformPasswords--;
-								break;
-							default: break;
-							}
 							break; // Commented because maybe some other users use the same passwords.
 						}
 					}
-					//validationCounter++;
+					validationCounter++;
+					mainThread.interrupt();
 				}
-				if (passwordQ.size()<=0) finished = true;
-				switch(validationMode) {
-				case 0:
-					if(remainingDictionaryPasswords==0) finished=true;
-					break;
-				case 1:
-					if(remainingSuffixPrefixPasswords==0) finished=true;
-					break;
-				case 2:
-					if(remainingLeetspeakPasswords==0) finished=true;
-					break;
-				case 3:
-					if(remainingCombinationPasswords==0) finished=true;
-					break;
-				case 4:
-					if(remainingDoubleTransformPasswords==0) finished=true;
-					break;
-				default: break;
+				else {
+					if (dictionaryPasswordQ.size() > 0) setMode(0);
+					else if (leetspeakPasswordQ.size() > 0) setMode(1);
+					else if (prefixSuffixPasswordQ.size() > 0) setMode(2);
+					else if (combinationPasswordQ.size() > 0) setMode(3);
+					else if (suffixCombinationPasswordQ.size() > 0) setMode(4);
+					else finished = true;
 				}
 			}
 		}
 	}
 	
-	public static void main(String args[]) throws InterruptedException
-	{
+	public static class DebugThread extends Thread {
+		public void run() {
+			long attackTime = System.currentTimeMillis();
+			long startTime = System.currentTimeMillis()-2000;
+			while (hashes.size()>0) {
+				long stopTime = System.currentTimeMillis();
+				System.out.println("Dictionary PasswordQ: "+dictionaryPasswordQ.size());
+				System.out.println("Leetspeak PasswordQ: "+leetspeakPasswordQ.size());
+				System.out.println("Prefix Suffix PasswordQ: "+prefixSuffixPasswordQ.size());
+				System.out.println("Combination PasswordQ: "+combinationPasswordQ.size());
+				System.out.println("Suffix Combination PasswordQ: "+suffixCombinationPasswordQ.size());
+				System.out.println("Hashes remaining: "+hashes.size());
+				System.out.println("Validation Speed (word/sec): "+validationCounter/((stopTime-startTime)/1000));
+				System.out.println();
+				validationCounter = 0;
+				startTime = System.currentTimeMillis();
+				try {
+					Thread.sleep(10000);
+				} catch (InterruptedException e) {
+					Thread.interrupted();
+					break;
+				}
+			}
+			long stopTime = System.currentTimeMillis();
+			System.out.println("Attack took: "+((float)(stopTime-attackTime)/(1000*60))+"min");
+		}
+	}
+	
+	public static void main(String args[]) {
 		String hashFilename;
 		String dictionaryFilename;
+		Thread debug = null;
+		if (args.length < 2) {
+			System.out.println("Please specify the hash file and dictionary file.");
+			System.out.println("\teg. java Assignment2 hash.txt dict.txt");
+			System.exit(1);
+		} else if (args.length > 2 && args[2].equals("debug")) {
+			debug = new DebugThread();
+		}
 		try {
 			hashFilename = args[0];
 			dictionaryFilename = args[1];
 			loadHashes(hashFilename);
 			loadDictionary(dictionaryFilename);
-			//loadHashes("hash.txt");
-			//loadDictionary("dict.txt");
+			if (debug != null) debug.start();
+			startAttack();
+			if (debug != null) { 
+				debug.interrupt(); 
+				boolean joined = false;
+				while(!joined) try { 
+					debug.join(); 
+					joined=true;
+				} catch (InterruptedException e) { 
+					Thread.interrupted(); 
+				};
+			}
+			System.exit(0);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			System.exit(-1);
 		}
-		startAttack();
 	}
 
 	public static void loadHashes(String filename) throws IOException {
@@ -296,70 +337,37 @@ public class Assignment2 {
 		br.close();
 	}
 	
-	public static void putIntoQueue(BlockingQueue<String> queue, String item) {
-		boolean added = false;
-		while (!added) {
-			try {
-				queue.put(item);
-				added = true;
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
+	public static void startAttack() {
+		for (int i=PASSWORD_MIN_LENGTH; i<=PASSWORD_MAX_LENGTH; i++) {
+			dictionaryPasswordQ.addAll(dictionary.get(i)); // Process dictionary words first.
 		}
-	}
-	
-	public static void startAttack() throws InterruptedException {
-		for (int i=1; i<=PASSWORD_MAX_LENGTH; i++) {
-			if (i>=PASSWORD_MIN_LENGTH)
-				passwordQ.addAll(dictionary.get(i)); // Process dictionary words first.
-		}
-		threadPool.execute(new PasswordTransformThread());
+		Thread passwordTransformThread = new PasswordTransformThread();
+		passwordTransformThread.start();
 		
-		Thread.sleep(1000);
-		threadPool.execute(new PasswordValidationThread(passwordQ,0));
-		threadPool.execute(new PasswordValidationThread(suffixPasswordQ,1));
-		threadPool.execute(new PasswordValidationThread(leetspeakPasswordQ,2));
-		threadPool.execute(new PasswordValidationThread(multiplePasswordQ,3));
-		threadPool.execute(new PasswordValidationThread(secondTransformPasswordQ,4));
-		//long startTime = System.currentTimeMillis();
+		try { Thread.sleep(3000); } catch (InterruptedException e1) {Thread.interrupted();}
+		if (numberOfProcessors < 4) threadPool = Executors.newFixedThreadPool(4);
+		for (int j=0; j<(numberOfProcessors / 4 + 1); j++) {
+			threadPool.execute(new PasswordValidationThread(0, Thread.currentThread()));
+			threadPool.execute(new PasswordValidationThread(1, Thread.currentThread()));
+			threadPool.execute(new PasswordValidationThread(2, Thread.currentThread()));
+			threadPool.execute(new PasswordValidationThread(3, Thread.currentThread()));
+			threadPool.execute(new PasswordValidationThread(4, Thread.currentThread()));
+		}
+		
 		boolean finished = false;
 		while (!finished) {
-			if (((passwordQ.size()<=0)&&(suffixPasswordQ.size()<=0)&&(leetspeakPasswordQ.size()<=0)&&(multiplePasswordQ.size()<=0)&&(secondTransformPasswordQ.size()<=0))||
-					(hashes.size()==0)) { 
-				finished = true;
-				break;
-			}
-			// Allocate available threads to process unsolved password types
-			if ((suffixPasswordQ.size()!=0)&&(remainingSuffixPrefixPasswords!=0)) 
-				threadPool.execute(new PasswordValidationThread(suffixPasswordQ,1));
-			else if ((leetspeakPasswordQ.size()!=0)&&(remainingLeetspeakPasswords!=0))
-				threadPool.execute(new PasswordValidationThread(leetspeakPasswordQ,2));
-			else if ((multiplePasswordQ.size()!=0)&&(remainingCombinationPasswords!=0)) 
-				threadPool.execute(new PasswordValidationThread(multiplePasswordQ,3));
-			else if ((secondTransformPasswordQ.size()!=0)&&(remainingDoubleTransformPasswords!=0))
-				threadPool.execute(new PasswordValidationThread(secondTransformPasswordQ,4));
-				
-			//startTime = System.currentTimeMillis();
-			/*System.out.println("Passwords: "+passwordQ.size());
-			System.out.println("Suffix PasswordQ: "+suffixPasswordQ.size());
-			System.out.println("Leetspeak PasswordQ: "+leetspeakPasswordQ.size());
-			System.out.println("Combinator PasswordQ: "+multiplePasswordQ.size());
-			System.out.println("SecondTransform PasswordQ: "+secondTransformPasswordQ.size());
-			System.out.println("Hashes remaining: "+hashes.size());
-			*/try {
-				Thread.sleep(10000);
-				//Print the validation speed
-				/*long stopTime = System.currentTimeMillis();
-				System.out.println("Validation Speed (word/sec): "+validationCounter/((stopTime-startTime)/1000));
-				validationCounter = 0;
-				*/
+			try {
+				Thread.sleep(60000); // Sleep for 1 minute.
 			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
+				Thread.interrupted(); // Clear status flag
+				if (((dictionaryPasswordQ.size()<=0)&&(prefixSuffixPasswordQ.size()<=0)&&(leetspeakPasswordQ.size()<=0)&&(combinationPasswordQ.size()<=0)&&(suffixCombinationPasswordQ.size()<=0))||
+						(hashes.size()==0)) { 
+					finished = true;
+					break;
+				}
 			}
 		}
-		System.exit(0);
+		passwordTransformThread.interrupt();
 		threadPool.shutdownNow();
-		while (!threadPool.isTerminated());
-		System.out.println("Attack finished.");
 	}
 }
