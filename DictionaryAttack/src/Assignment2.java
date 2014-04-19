@@ -69,7 +69,7 @@ public class Assignment2 {
 				}
 				//System.out.println("Leetspeak Substitution Done");
 				words.clear();
-				for (int i=PASSWORD_MIN_LENGTH-2; i<=PASSWORD_MAX_LENGTH-2; i++) {
+				for (int i=PASSWORD_MIN_LENGTH-2; i<=PASSWORD_MAX_LENGTH-1; i++) {
 					words.addAll(dictionary.get(i));
 				}
 				for (String word : words) {
@@ -122,11 +122,19 @@ public class Assignment2 {
 		private void number_prefix_suffix_rule(String word) throws InterruptedException {
 			String temp;
 			if (word.matches("(.*)[0-9](.*)")) return; // Omit the password if numbers are already present.
-			for (int j=0; j<100; j++) { // Appends or prepends at most 2 numbers.
+			for (int j=0; j<10; j++) { // Appends or prepends 1-digit.
 				temp = word+j;
 				prefixSuffixPasswordQ.put(temp);
 				suffixCombinationQ.put(temp);
 				temp = j+word;
+				prefixSuffixPasswordQ.put(temp);
+			}
+			if (word.length() >= PASSWORD_MAX_LENGTH-1) return; 
+			for (int j=0; j<100; j++) { // Appends or prepends 2-digits.
+				temp = word+String.format("%02d", j);
+				prefixSuffixPasswordQ.put(temp);
+				suffixCombinationQ.put(temp);
+				temp = String.format("%02d", j)+word;
 				prefixSuffixPasswordQ.put(temp);
 			}
 		}
@@ -155,7 +163,7 @@ public class Assignment2 {
 			for (ArrayList<String> list : dictionary.values())
 				words.addAll(list);
 			String word;
-			while(((word=suffixCombinationQ.poll())!=null)||(hashes.size()!=0)) {
+			while(((word=suffixCombinationQ.poll())!=null)&&(hashes.size()!=0)) {
 				while(suffixCombinationPasswordQ.size()>50000 && hashes.size() > 0) {
 					Thread.sleep(3000);
 				}
