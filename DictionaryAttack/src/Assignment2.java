@@ -335,12 +335,13 @@ public class Assignment2 {
 		BufferedReader br = new BufferedReader(new FileReader(filename));
 		String line;
 		while ((line = br.readLine()) != null) {
+			if (line.matches("\\W")) continue;
 			ArrayList<String> wordList = dictionary.get(line.length());
 			if (wordList == null) {
 				wordList = new ArrayList<String>();
 				dictionary.put(line.length(), wordList);
 			}
-			wordList.add(line);
+			wordList.add(line.toLowerCase());
 		}
 		br.close();
 	}
